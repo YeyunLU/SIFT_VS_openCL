@@ -39,14 +39,15 @@ int main(int argc, char** argv)
 	cl_sampler ImgSampler;
 	cl_mem Filter;
 	cl_mem FSum;
+	cl_mem Sigma;
 	cl_mem DoGImage;
 	cl_mem Extrema;
 	int width, height, channels;
 
-	cl_float sigma = 0.7;
-	cl_int sizex = 2;
-	cl_int sizey = 2;
-	cl_int filterWidth = 5;
+	float sigma[5] = {0.7,1.4,2.1,2.8,3.5};
+	cl_int sizex = 1;//downsample size
+	cl_int sizey = 1;
+	cl_int filterWidth = 5/sizex;
 	cl_int filterSize = filterWidth * filterWidth;
 	cl_uint2 extremapoints[100];
 	float * gaussBlurFilter = (float*)_aligned_malloc(sizeof(float)*filterSize, 4096);
@@ -76,17 +77,18 @@ int main(int argc, char** argv)
 	unsigned char *indata = NULL;
 	unsigned char *outdata = NULL;
 
-	string inputfile = "C:/Final/Final/Final/images/input.png";
+	string inputfile = "C:/Final/Final/Final/images/512_512.png";
 	string outputfile = "C:/Final/Final/Final/images/output.jpg";
+	
 
 	indata = stbi_load(inputfile.c_str(), &width, &height, &channels, 0);
 
 	size_t globalworksize[] = { width,height,0 };
-	size_t globalworksize2[] = { width / 2,height / 2,0 };
+	size_t globalworksize2[] = { width / sizex,height / sizey,0 };
 	size_t localworksize[] = { 1,1,0 };
 	size_t origin[] = { 0, 0, 0 };
 	size_t region[] = { width,height,1 };
-	size_t region2[] = { width / 2, height / 2, 1 };
+	size_t region2[] = { width / sizex, height / sizey, 1 };
 
 	cl_image_desc desc;
 	desc.image_type = CL_MEM_OBJECT_IMAGE2D;
@@ -101,8 +103,8 @@ int main(int argc, char** argv)
 	desc.buffer = NULL;
 	cl_image_desc desc2;
 	desc2.image_type = CL_MEM_OBJECT_IMAGE2D;
-	desc2.image_width = width / 2;
-	desc2.image_height = height / 2;
+	desc2.image_width = width / sizex;
+	desc2.image_height = height / sizey;
 	desc2.image_depth = 0;
 	desc2.image_array_size = 0;
 	desc2.image_row_pitch = 0;
@@ -114,7 +116,7 @@ int main(int argc, char** argv)
 	format.image_channel_order = CL_RGBA;
 	format.image_channel_data_type = CL_UNSIGNED_INT8;
 
-	outdata = (unsigned char*)malloc(width*height * sizeof(unsigned char));
+	outdata = (unsigned char*)malloc(width*height*channels * sizeof(unsigned char));
 
 	//Get platform
 	clGetPlatformIDs(0, NULL, &num_platforms);//first call,get the num_platforms
@@ -233,7 +235,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	GaussianBlurImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc2, NULL, &err);
+	GaussianBlurImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to create outputimage!\n");
@@ -254,7 +256,6 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-
 	Filter = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(float)*filterSize, gaussBlurFilter, &err);
 	if (err != CL_SUCCESS)
 	{
@@ -263,6 +264,13 @@ int main(int argc, char** argv)
 	}
 
 	FSum = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(float)*filterSize, filtsum, &err);
+	if (err != CL_SUCCESS)
+	{
+		printf("Error: Failed to create buffer!\n");
+		return EXIT_FAILURE;
+	}
+
+	Sigma = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(float)*5, sigma, &err);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to create buffer!\n");
@@ -291,7 +299,7 @@ int main(int argc, char** argv)
 	err |= clSetKernelArg(kernel[0], 3, sizeof(cl_mem), &sizey);
 	err |= clSetKernelArg(kernel[0], 4, sizeof(cl_sampler), &ImgSampler);
 	err |= clSetKernelArg(kernel[1], 0, sizeof(cl_mem), &filterWidth);
-	err |= clSetKernelArg(kernel[1], 1, sizeof(cl_mem), &sigma);
+	err |= clSetKernelArg(kernel[1], 1, sizeof(cl_mem), &Sigma);
 	err |= clSetKernelArg(kernel[1], 2, sizeof(cl_mem), &Filter);
 	err |= clSetKernelArg(kernel[1], 3, sizeof(cl_mem), &FSum);
 	err |= clSetKernelArg(kernel[2], 0, sizeof(cl_mem), &InputImage);
@@ -301,11 +309,13 @@ int main(int argc, char** argv)
 	err |= clSetKernelArg(kernel[2], 4, sizeof(cl_mem), &Filter);
 	err |= clSetKernelArg(kernel[3], 0, sizeof(cl_mem), &InputImage);
 	err |= clSetKernelArg(kernel[3], 1, sizeof(cl_mem), &InputImage);
-	err |= clSetKernelArg(kernel[3], 2, sizeof(cl_mem), &DoGImage);
+	err |= clSetKernelArg(kernel[3], 2, sizeof(cl_mem), &DoGImage); 
+	err |= clSetKernelArg(kernel[3], 3, sizeof(cl_sampler), &ImgSampler);
 	err |= clSetKernelArg(kernel[4], 0, sizeof(cl_mem), &InputImage);
 	err |= clSetKernelArg(kernel[4], 1, sizeof(cl_mem), &InputImage);
 	err |= clSetKernelArg(kernel[4], 2, sizeof(cl_mem), &InputImage);
 	err |= clSetKernelArg(kernel[4], 3, sizeof(cl_mem), &Extrema);
+	err |= clSetKernelArg(kernel[4], 4, sizeof(cl_sampler), &ImgSampler);
 
 	if (err != CL_SUCCESS)
 	{
@@ -352,7 +362,7 @@ int main(int argc, char** argv)
 		}
 
 		//Gaussian Blur
-		err = clEnqueueNDRangeKernel(command, kernel[2], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[2], dimention, NULL, globalworksize, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -365,7 +375,7 @@ int main(int argc, char** argv)
 			printf("Error: clFinish Failed!\n");
 			return EXIT_FAILURE;
 		}
-
+		//DoG Image
 		err = clEnqueueNDRangeKernel(command, kernel[3], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
@@ -379,7 +389,7 @@ int main(int argc, char** argv)
 			printf("Error: clFinish Failed!\n");
 			return EXIT_FAILURE;
 		}
-
+		//Extrema Points
 		err = clEnqueueNDRangeKernel(command, kernel[4], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
@@ -408,25 +418,28 @@ int main(int argc, char** argv)
 	printf("\tAverage Execution Time: %f ms\n ", time_ave);
 	printf("\tStandard Deviation of Time: %f\n ", time_standard_deviation);
 
-	err = clEnqueueReadImage(command, DownSampleImage, CL_TRUE, origin, region2, 0, 0, outdata, 0, NULL, NULL);
+	err = clEnqueueReadImage(command, DoGImage, CL_TRUE, origin, region, 0, 0, outdata, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to read image from device!\n");
 		return EXIT_FAILURE;
 	}
 
-	stbi_write_jpg(outputfile.c_str(), width / 2, height / 2, channels, outdata, 100);
+	stbi_write_jpg(outputfile.c_str(), width , height, channels, outdata, 100);
 
 
 	//Release Memory
 	clReleaseMemObject(InputImage);
 	clReleaseMemObject(DownSampleImage);
 	clReleaseMemObject(GaussianBlurImage);
+	clReleaseMemObject(DoGImage);
 
 	clReleaseProgram(program);
 	clReleaseKernel(kernel[0]);
 	clReleaseKernel(kernel[1]);
 	clReleaseKernel(kernel[2]);
+	clReleaseKernel(kernel[3]);
+	clReleaseKernel(kernel[4]);
 	clReleaseCommandQueue(command);
 	clReleaseContext(context);
 
