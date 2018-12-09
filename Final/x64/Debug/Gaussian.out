@@ -1,0 +1,22 @@
+Setting target instruction set architecture to: Default (Advanced Vector Extension 2 (AVX2))
+OpenCL Intel CPU device was found!
+Device name: Intel(R) Core(TM) i7-8700T CPU @ 2.40GHz
+Device version: OpenCL 2.1 (Build 611)
+Device vendor: Intel(R) Corporation
+Device profile: FULL_PROFILE
+Compilation started
+Compilation done
+Linking started
+Linking done
+Device build started
+Device build done
+Kernel <Gaussian> was successfully vectorized (8)
+Done.
+Gaussian info:
+	Maximum work-group size: 8192
+	Compiler work-group size: (0, 0, 0)
+	Local memory size: 0
+	Preferred multiple of work-group size: 128
+	Minimum amount of private memory: 128
+
+Build succeeded!

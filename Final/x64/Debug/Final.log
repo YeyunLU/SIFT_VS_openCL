@@ -1,0 +1,82 @@
+﻿  Preprocessing: device.cl
+  Ignoring -TARGETOS option - not supported for 64-bit version of this tool
+  Setting target instruction set architecture to: Default (Advanced Vector Extension 2 (AVX2))
+  OpenCL Intel CPU device was found!
+  Device name: Intel(R) Core(TM) i5-7300U CPU @ 2.60GHz
+  Device version: OpenCL 2.1 (Build 698)
+  Device vendor: Intel(R) Corporation
+  Device profile: FULL_PROFILE
+  Compilation started
+  Compilation done
+  Linking started
+  Linking done
+  Device build started
+  Device build done
+  Kernel <DownSample> was not vectorized
+  Kernel <GaussianFilter> was successfully vectorized (8)
+  Kernel <GaussianBlur> was successfully vectorized (8)
+  Kernel <DoG> was successfully vectorized (8)
+  Kernel <Extrema> was successfully vectorized (8)
+  Done.
+  DownSample info:
+  	Maximum work-group size: 8192
+  	Compiler work-group size: (0, 0, 0)
+  	Local memory size: 0
+  	Preferred multiple of work-group size: 128
+  	Minimum amount of private memory: 0
+  
+  GaussianFilter info:
+  	Maximum work-group size: 8192
+  	Compiler work-group size: (0, 0, 0)
+  	Local memory size: 0
+  	Preferred multiple of work-group size: 128
+  	Minimum amount of private memory: 128
+  
+  GaussianBlur info:
+  	Maximum work-group size: 8192
+  	Compiler work-group size: (0, 0, 0)
+  	Local memory size: 0
+  	Preferred multiple of work-group size: 128
+  	Minimum amount of private memory: 0
+  
+  DoG info:
+  	Maximum work-group size: 8192
+  	Compiler work-group size: (0, 0, 0)
+  	Local memory size: 0
+  	Preferred multiple of work-group size: 128
+  	Minimum amount of private memory: 0
+  
+  Extrema info:
+  	Maximum work-group size: 8192
+  	Compiler work-group size: (0, 0, 0)
+  	Local memory size: 0
+  	Preferred multiple of work-group size: 128
+  	Minimum amount of private memory: 0
+  
+  Build succeeded!
+  
+  host.cpp
+c:\final\final\final\read_source.h(45): warning C4477: 'printf' : format string '%ld' requires an argument of type 'long', but variadic argument 2 has type 'size_t'
+  c:\final\final\final\read_source.h(45): note: consider using '%zd' in the format string
+c:\final\final\final\read_source.h(16): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\final\final\final\stb_image_write.h(285): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\final\final\final\stb_image_write.h(692): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(1774): note: see declaration of 'sprintf'
+c:\final\final\final\stb_image_write.h(1118): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdio.h(208): note: see declaration of 'fopen'
+c:\final\final\final\host.cpp(46): warning C4305: 'initializing': truncation from 'double' to 'cl_float'
+c:\final\final\final\host.cpp(55): warning C4838: conversion from 'cl_int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(56): warning C4838: conversion from 'cl_int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(84): warning C4838: conversion from 'int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(85): warning C4838: conversion from 'int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(88): warning C4838: conversion from 'int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(89): warning C4838: conversion from 'int' to 'size_t' requires a narrowing conversion
+c:\final\final\final\host.cpp(272): warning C4996: 'clCreateSampler': was declared deprecated
+  c:\intel\opencl\sdk\include\cl\cl.h(1435): note: see declaration of 'clCreateSampler'
+c:\final\final\final\host.cpp(61): warning C4101: 'start_time': unreferenced local variable
+c:\final\final\final\host.cpp(62): warning C4101: 'end_time': unreferenced local variable
+  Final.vcxproj -> C:\Final\Final\x64\Debug\Final.exe
+  device.cl
+          1 file(s) copied.

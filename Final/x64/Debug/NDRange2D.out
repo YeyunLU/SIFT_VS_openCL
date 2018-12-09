@@ -1,0 +1,22 @@
+Setting target instruction set architecture to: Default (Advanced Vector Extension 2 (AVX2))
+OpenCL Intel CPU device was found!
+Device name: Intel(R) Core(TM) i5-7300U CPU @ 2.60GHz
+Device version: OpenCL 2.1 (Build 698)
+Device vendor: Intel(R) Corporation
+Device profile: FULL_PROFILE
+Compilation started
+Compilation done
+Linking started
+Linking done
+Device build started
+Device build done
+Kernel <NDRange2D> was successfully vectorized (8)
+Done.
+NDRange2D info:
+	Maximum work-group size: 8192
+	Compiler work-group size: (0, 0, 0)
+	Local memory size: 0
+	Preferred multiple of work-group size: 128
+	Minimum amount of private memory: 128
+
+Build succeeded!
