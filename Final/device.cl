@@ -28,7 +28,7 @@ __kernel void DownSample (  __read_only image2d_t inputImg,
     write_imagef ( outputImg, (int2) ( i, j ), total );
 }
 
-__kernel void GaussianFilter(int filterWidth, float sigma,__global float * gaussBlurFilter,__global float * filtSum)
+__kernel void GaussianFilter(int filterWidth, __global float* sigma,__global float * gaussBlurFilter,__global float * filtSum)
 {
 	float gauss[10];
 	for(int i=0;i<filterWidth;i++)
@@ -39,9 +39,9 @@ __kernel void GaussianFilter(int filterWidth, float sigma,__global float * gauss
 	int filtIdx = get_global_id(0);
 	int x=filtIdx%filterWidth;
 	int y=filtIdx/filterWidth;
-	gaussBlurFilter[filtIdx] = (float)1/(2*3.14159*sigma)*exp((-gauss[x]*gauss[x]-gauss[y]*gauss[y])/(2*sigma*sigma));
-	//filtSum[filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[filtIdx]);
-	//gaussBlurFilter[filtIdx]=(float)gaussBlurFilter[filtIdx]/filtSum[24];
+	gaussBlurFilter[filtIdx] = (float)1/(2*3.14159*sigma[0])*exp((-gauss[x]*gauss[x]-gauss[y]*gauss[y])/(2*sigma[0]*sigma[0]));
+	filtSum[filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[filtIdx]);
+	gaussBlurFilter[filtIdx]=(float)gaussBlurFilter[filtIdx]/filtSum[24];
 	//printf(" After %f\n",filtSum[24]);
 }
 
@@ -51,6 +51,8 @@ __kernel void GaussianBlur(__read_only image2d_t inputImg, __write_only image2d_
 	// use global IDs for output coords
 	int x = get_global_id(0); // columns
 	int y = get_global_id(1); // rows
+	//int z = get_global_id(2); // sigmas
+
 	int halfWidth = (int)(filterWidth/2); // auto-round nearest int ???
 	float4 sum = (float4)(0);
 	int filtIdx = 0; // filter kernel passed in as linearized buffer array
@@ -75,16 +77,52 @@ __kernel void GaussianBlur(__read_only image2d_t inputImg, __write_only image2d_
 
 __kernel void DoG(__read_only image2d_t inputImg1,
 				  __read_only image2d_t inputImg2,
-				  __write_only image2d_t outputImg)
+				  __write_only image2d_t outputImg,
+				  sampler_t sampler)
 { 
-
+	
 
 }
 
-__kernel void Extrema(__read_only image2d_t inputImg1,
-					 __read_only image2d_t inputImg2,
-					 __read_only image2d_t inputImg3,
-					 __global float2 * extrema)
+__kernel void Extrema(__read_only image2d_t preImg,
+					  __read_only image2d_t curImg,
+					  __read_only image2d_t nextImg,
+					  __global uint2 * extrema,
+					  sampler_t sampler)
 { 
+	int x = get_global_id(0); // cols
+	int y = get_global_id(1); // rows
+	float4 point = read_imagef(preImg, sampler,(int2)(x,y));
+	float4 p1 = read_imagef(preImg, sampler, (int2)(x,y-1)); //compare with 26 points
+	float4 p2 = read_imagef(preImg, sampler, (int2)(x,y+1));
+	float4 p3 = read_imagef(preImg, sampler, (int2)(x-1,y-1));
+	float4 p4 = read_imagef(preImg, sampler, (int2)(x-1,y));
+	float4 p5 = read_imagef(preImg, sampler, (int2)(x-1,y+1));
+	float4 p6 = read_imagef(preImg, sampler, (int2)(x+1,y-1));
+	float4 p7 = read_imagef(preImg, sampler, (int2)(x+1,y));
+	float4 p8 = read_imagef(preImg, sampler, (int2)(x+1,y+1));
+	float4 c1 = read_imagef(curImg, sampler, (int2)(x,y-1));
+	float4 c2 = read_imagef(curImg, sampler, (int2)(x,y));
+	float4 c3 = read_imagef(curImg, sampler, (int2)(x,y+1));
+	float4 c4 = read_imagef(curImg, sampler, (int2)(x-1,y-1));
+	float4 c5 = read_imagef(curImg, sampler, (int2)(x-1,y));
+	float4 c6 = read_imagef(curImg, sampler, (int2)(x-1,y+1));
+	float4 c7 = read_imagef(curImg, sampler, (int2)(x+1,y-1));
+	float4 c8 = read_imagef(curImg, sampler, (int2)(x+1,y));
+	float4 c9 = read_imagef(curImg, sampler, (int2)(x+1,y+1));
+	float4 n1 = read_imagef(nextImg, sampler, (int2)(x,y-1));
+	float4 n2 = read_imagef(nextImg, sampler, (int2)(x,y));
+	float4 n3 = read_imagef(nextImg, sampler, (int2)(x,y+1));
+	float4 n4 = read_imagef(nextImg, sampler, (int2)(x-1,y-1));
+	float4 n5 = read_imagef(nextImg, sampler, (int2)(x-1,y));
+	float4 n6 = read_imagef(nextImg, sampler, (int2)(x-1,y+1));
+	float4 n7 = read_imagef(nextImg, sampler, (int2)(x+1,y-1));
+	float4 n8 = read_imagef(nextImg, sampler, (int2)(x+1,y));
+	float4 n9 = read_imagef(nextImg, sampler, (int2)(x+1,y+1));
+	//if(point>p1 && point>p2 && point>p3 && point>p4 && point>p5 && point>p6 && point>p7 && point>p8
+	//&&point>c1 && point>c2 && point>c3 && point>c4 && point>c5 && point>c6 && point>c7 && point>c8 && point>c9
+	//&&point>n1 && point>n2 && point>n3 && point>n4 && point>n5 && point>n6 && point>n7 && point>n8 && point>n9)
+	//extrema[0]=(uint2)(x,y);
 
+	
 }
