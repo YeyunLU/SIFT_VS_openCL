@@ -1,3 +1,5 @@
+__constant float4 grayscale = { 0.2989f, 0.5870f, 0.1140f, 0 };
+
 __kernel void DownSample (  __read_only image2d_t inputImg,
                             __write_only image2d_t outputImg,
 							int SIZEX, int SIZEY,
@@ -14,7 +16,6 @@ __kernel void DownSample (  __read_only image2d_t inputImg,
    int js = j * SIZEY;
    //printf("(%d,%d)\n",i,j);
 
-  
    float4 total = (float4) (0);
   
    for ( int x = 0; x < SIZEX; x++ ) {
@@ -28,7 +29,10 @@ __kernel void DownSample (  __read_only image2d_t inputImg,
     write_imagef ( outputImg, (int2) ( i, j ), total );
 }
 
-__kernel void GaussianFilter(int filterWidth, __global float* sigma,__global float * gaussBlurFilter,__global float * filtSum)
+__kernel void GaussianFilter(int filterWidth, 
+                             __global float* sigma,
+							 __global float * gaussBlurFilter,
+							 __global float * filtSum)
 {
 	float gauss[10];
 	for(int i=0;i<filterWidth;i++)
@@ -40,12 +44,15 @@ __kernel void GaussianFilter(int filterWidth, __global float* sigma,__global flo
 	int x=filtIdx%filterWidth;
 	int y=filtIdx/filterWidth;
 	gaussBlurFilter[filtIdx] = (float)1/(2*3.14159*sigma[0])*exp((-gauss[x]*gauss[x]-gauss[y]*gauss[y])/(2*sigma[0]*sigma[0]));
-	filtSum[filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[filtIdx]);
-	gaussBlurFilter[filtIdx]=(float)gaussBlurFilter[filtIdx]/filtSum[24];
+	//filtSum[filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[filtIdx]);
+	//gaussBlurFilter[filtIdx]=(float)gaussBlurFilter[filtIdx]/filtSum[24];
 	//printf(" After %f\n",filtSum[24]);
 }
 
-__kernel void GaussianBlur(__read_only image2d_t inputImg, __write_only image2d_t outputImg, sampler_t sampler, int filterWidth,__global float *gaussBlurFilter)
+__kernel void GaussianBlur(__read_only image2d_t inputImg, 
+                           __write_only image2d_t outputImg,
+						   sampler_t sampler, int filterWidth,
+						   __global float *gaussBlurFilter)
 {
 
 	// use global IDs for output coords
@@ -84,45 +91,47 @@ __kernel void DoG(__read_only image2d_t inputImg1,
 
 }
 
+
 __kernel void Extrema(__read_only image2d_t preImg,
 					  __read_only image2d_t curImg,
 					  __read_only image2d_t nextImg,
 					  __global uint2 * extrema,
-					  sampler_t sampler)
+					  sampler_t sampler,
+					  __global int *index)
 { 
 	int x = get_global_id(0); // cols
 	int y = get_global_id(1); // rows
-	float4 point = read_imagef(preImg, sampler,(int2)(x,y));
-	float4 p1 = read_imagef(preImg, sampler, (int2)(x,y-1)); //compare with 26 points
-	float4 p2 = read_imagef(preImg, sampler, (int2)(x,y+1));
-	float4 p3 = read_imagef(preImg, sampler, (int2)(x-1,y-1));
-	float4 p4 = read_imagef(preImg, sampler, (int2)(x-1,y));
-	float4 p5 = read_imagef(preImg, sampler, (int2)(x-1,y+1));
-	float4 p6 = read_imagef(preImg, sampler, (int2)(x+1,y-1));
-	float4 p7 = read_imagef(preImg, sampler, (int2)(x+1,y));
-	float4 p8 = read_imagef(preImg, sampler, (int2)(x+1,y+1));
-	float4 c1 = read_imagef(curImg, sampler, (int2)(x,y-1));
-	float4 c2 = read_imagef(curImg, sampler, (int2)(x,y));
-	float4 c3 = read_imagef(curImg, sampler, (int2)(x,y+1));
-	float4 c4 = read_imagef(curImg, sampler, (int2)(x-1,y-1));
-	float4 c5 = read_imagef(curImg, sampler, (int2)(x-1,y));
-	float4 c6 = read_imagef(curImg, sampler, (int2)(x-1,y+1));
-	float4 c7 = read_imagef(curImg, sampler, (int2)(x+1,y-1));
-	float4 c8 = read_imagef(curImg, sampler, (int2)(x+1,y));
-	float4 c9 = read_imagef(curImg, sampler, (int2)(x+1,y+1));
-	float4 n1 = read_imagef(nextImg, sampler, (int2)(x,y-1));
-	float4 n2 = read_imagef(nextImg, sampler, (int2)(x,y));
-	float4 n3 = read_imagef(nextImg, sampler, (int2)(x,y+1));
-	float4 n4 = read_imagef(nextImg, sampler, (int2)(x-1,y-1));
-	float4 n5 = read_imagef(nextImg, sampler, (int2)(x-1,y));
-	float4 n6 = read_imagef(nextImg, sampler, (int2)(x-1,y+1));
-	float4 n7 = read_imagef(nextImg, sampler, (int2)(x+1,y-1));
-	float4 n8 = read_imagef(nextImg, sampler, (int2)(x+1,y));
-	float4 n9 = read_imagef(nextImg, sampler, (int2)(x+1,y+1));
-	//if(point>p1 && point>p2 && point>p3 && point>p4 && point>p5 && point>p6 && point>p7 && point>p8
-	//&&point>c1 && point>c2 && point>c3 && point>c4 && point>c5 && point>c6 && point>c7 && point>c8 && point>c9
-	//&&point>n1 && point>n2 && point>n3 && point>n4 && point>n5 && point>n6 && point>n7 && point>n8 && point>n9)
-	//extrema[0]=(uint2)(x,y);
-
+	float4 rgba;
+	int idx = 0;
+	//read_only image2d_array_t Img;
+	__local float p[27];
+	for(int i=0;i<3;i++)
+	{ 
+	   for(int j=-1;j<=1;j++)
+		{ 
+			for(int k=-1;k<=1;k++)
+			{
+				if(i==0)
+				rgba = read_imagef(preImg,sampler,(int2)(x+j,y+k));
+				else if(i==1)
+				rgba = read_imagef(curImg,sampler,(int2)(x+j,y+k));
+				else
+				rgba = read_imagef(nextImg,sampler,(int2)(x+j,y+k));
+				//printf("%f\n",rgba.w);
+				p[i*9+j*3+k] = dot(grayscale, rgba);
+			}			   
+		}		  
+	}	   
+	//printf("%f\n",p[13]);
+	if(p[13]>p[0] && p[13]>p[1] && p[13]>p[2] && p[13]>p[3] && p[13]>p[4] && p[13]>p[5]
+	&& p[13]>p[6] && p[13]>p[7] && p[13]>p[8] && p[13]>p[9] && p[13]>p[10] && p[13]>p[11]
+	&& p[13]>p[12] && p[13]>p[14] && p[13]>p[15] && p[13]>p[16] && p[13]>p[17] && p[13]>p[18]
+	&& p[13]>p[19] && p[13]>p[20] && p[13]>p[21] && p[13]>p[22] && p[13]>p[23] && p[13]>p[24]
+	&& p[13]>p[25] && p[13]>p[26])
+   {
+		//printf("(%d,%d)\n",x,y);
+		idx = atomic_add(index,1);
+	    extrema[idx]=(uint2)(x,y);
+   }	   
 	
 }
