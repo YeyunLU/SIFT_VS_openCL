@@ -42,6 +42,7 @@ int main(int argc, char** argv)
 	cl_mem Sigma;
 	cl_mem DoGImage;
 	cl_mem Extrema;
+	cl_mem Index;
 	int width, height, channels;
 
 	float sigma[5] = {0.7,1.4,2.1,2.8,3.5};
@@ -49,10 +50,11 @@ int main(int argc, char** argv)
 	cl_int sizey = 1;
 	cl_int filterWidth = 5/sizex;
 	cl_int filterSize = filterWidth * filterWidth;
-	cl_uint2 extremapoints[100];
+	int * idx = (int*)_aligned_malloc(sizeof(int)*1, 4096);
 	float * gaussBlurFilter = (float*)_aligned_malloc(sizeof(float)*filterSize, 4096);
 	float * filtsum = (float*)_aligned_malloc(sizeof(float)*filterSize, 4096);
 	filtsum[0] = 0;
+	cl_uint2 extremapoints[100];
 	size_t filterworksize[] = { filterWidth*filterWidth,0,0 };
 	size_t filterlocalworksize[] = { filterWidth*filterWidth,0,0 };
 	LARGE_INTEGER frequency;
@@ -69,7 +71,7 @@ int main(int argc, char** argv)
 	cl_context context;
 	cl_program program;
 	cl_command_queue command;
-	cl_kernel kernel[5] = { NULL, NULL,NULL,NULL,NULL };
+	cl_kernel kernel[5] = {NULL, NULL,NULL,NULL,NULL};
 
 	int dimention = 2;
 	char *KernelSource = read_source("device.cl", &file_size);
@@ -231,28 +233,28 @@ int main(int argc, char** argv)
 	DownSampleImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc2, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create outputimage!\n");
+		printf("Error: Failed to create DownSampleImage!\n");
 		return EXIT_FAILURE;
 	}
 
 	GaussianBlurImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create outputimage!\n");
+		printf("Error: Failed to create GaussianBlurImage!\n");
 		return EXIT_FAILURE;
 	}
 
 	DoGImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc2, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create outputimage!\n");
+		printf("Error: Failed to create DoGImage!\n");
 		return EXIT_FAILURE;
 	}
 
 	Extrema = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(cl_uint2) * 100, extremapoints, &err);
 	if (err != CL_SUCCESS)
 	{
-		printf("Error: Failed to create buffer!\n");
+		printf("Error: Failed to create buffer for Extrema!\n");
 		return EXIT_FAILURE;
 	}
 
@@ -264,6 +266,13 @@ int main(int argc, char** argv)
 	}
 
 	FSum = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(float)*filterSize, filtsum, &err);
+	if (err != CL_SUCCESS)
+	{
+		printf("Error: Failed to create buffer!\n");
+		return EXIT_FAILURE;
+	}
+
+	Index = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, sizeof(int)*1, idx, &err);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to create buffer!\n");
@@ -316,6 +325,7 @@ int main(int argc, char** argv)
 	err |= clSetKernelArg(kernel[4], 2, sizeof(cl_mem), &InputImage);
 	err |= clSetKernelArg(kernel[4], 3, sizeof(cl_mem), &Extrema);
 	err |= clSetKernelArg(kernel[4], 4, sizeof(cl_sampler), &ImgSampler);
+	err |= clSetKernelArg(kernel[4], 5, sizeof(cl_mem), &Index);
 
 	if (err != CL_SUCCESS)
 	{
@@ -332,7 +342,7 @@ int main(int argc, char** argv)
 		//Execute the kernel
 
 		//Downsample
-		err = clEnqueueNDRangeKernel(command, kernel[0], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[0], dimention, NULL, globalworksize, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -376,7 +386,7 @@ int main(int argc, char** argv)
 			return EXIT_FAILURE;
 		}
 		//DoG Image
-		err = clEnqueueNDRangeKernel(command, kernel[3], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[3], dimention, NULL, globalworksize, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -390,7 +400,7 @@ int main(int argc, char** argv)
 			return EXIT_FAILURE;
 		}
 		//Extrema Points
-		err = clEnqueueNDRangeKernel(command, kernel[4], dimention, NULL, globalworksize2, localworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[4], dimention, NULL, globalworksize, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -403,6 +413,7 @@ int main(int argc, char** argv)
 			printf("Error: clFinish Failed!\n");
 			return EXIT_FAILURE;
 		}
+		
 
 		QueryPerformanceCounter(&end);
 
@@ -418,7 +429,7 @@ int main(int argc, char** argv)
 	printf("\tAverage Execution Time: %f ms\n ", time_ave);
 	printf("\tStandard Deviation of Time: %f\n ", time_standard_deviation);
 
-	err = clEnqueueReadImage(command, DoGImage, CL_TRUE, origin, region, 0, 0, outdata, 0, NULL, NULL);
+	err = clEnqueueReadImage(command, GaussianBlurImage, CL_TRUE, origin, region, 0, 0, outdata, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to read image from device!\n");
