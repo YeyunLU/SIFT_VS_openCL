@@ -95,6 +95,21 @@ __kernel void DoG(__read_only image2d_t inputImg1,
 
 }
 
+// Need to convert to image_2d_array_t
+__kernel void DifferenceOfGaussian(__read_only image2d_t inputImg1, __read_only image2d_t inputImg2, __write_only image2d_t outputImg, sampler_t sampler)
+{
+	int x = get_global_id(0);
+	int y = get_global_id(1);
+	int2 coords;
+	coords.x = x;
+	coords.y = y;
+	float4 pixel1 = read_imagef(inputImg1, sampler, coords);
+	float4 pixel2 = read_imagef(inputImg2, sampler, coords);
+
+	float4 DoG = pixel1 - pixel2;
+	write_imagef(outputImg, coords, DoG);
+
+}
 
 __kernel void Extrema(__read_only image2d_t preImg,
 					  __read_only image2d_t curImg,
