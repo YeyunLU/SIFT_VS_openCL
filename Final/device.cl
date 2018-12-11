@@ -40,27 +40,31 @@ __kernel void GaussianFilter(int filterWidth,
 		gauss[i]=-1+i*(float)2/(filterWidth-1);
 		
 	}
-	int filtIdx = get_global_id(0);
-	int x=filtIdx%filterWidth;
-	int y=filtIdx/filterWidth;
-	gaussBlurFilter[filtIdx] = (float)1/(2*3.14159*sigma[0])*exp((-gauss[x]*gauss[x]-gauss[y]*gauss[y])/(2*sigma[0]*sigma[0]));
-	//filtSum[filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[filtIdx]);
-	//gaussBlurFilter[filtIdx]=(float)gaussBlurFilter[filtIdx]/filtSum[24];
-	//printf(" After %f\n",filtSum[24]);
+	int filtIdx = get_local_id(0);
+	int filtSize = get_local_size(0);
+	int x = filtIdx%filterWidth;
+	int y = filtIdx/filterWidth;
+	int z = get_global_id(1);
+	//printf("%d\n",z*filtSize+filtIdx);
+	gaussBlurFilter[z*filtSize+filtIdx] = (float)1/(2*3.14159*sigma[z])*exp((-gauss[x]*gauss[x]-gauss[y]*gauss[y])/(2*sigma[z]*sigma[z]));
+	filtSum[z*filtSize+filtIdx] = work_group_scan_inclusive_add(gaussBlurFilter[z*filtSize+filtIdx]);
+	gaussBlurFilter[z*filtSize+filtIdx]=(float)gaussBlurFilter[z*filtSize+filtIdx]/filtSum[z*filtSize+24];
+	printf(" After %d, %f\n",z,filtSum[z*filtSize+24]);
 }
 
 __kernel void GaussianBlur(__read_only image2d_t inputImg, 
-                           __write_only image2d_t outputImg,
+                           __write_only image2d_array_t outputImg,
 						   sampler_t sampler, int filterWidth,
 						   __global float *gaussBlurFilter)
 {
 
 	// use global IDs for output coords
-	int x = get_global_id(0); // columns
+	int x = get_global_id(0); // cols
 	int y = get_global_id(1); // rows
-	//int z = get_global_id(2); // sigmas
+	int z = get_global_id(2); // sigmas
 
 	int halfWidth = (int)(filterWidth/2); // auto-round nearest int ???
+	int filtSize = filterWidth*filterWidth;
 	float4 sum = (float4)(0);
 	int filtIdx = 0; // filter kernel passed in as linearized buffer array
 	int2 coords;
@@ -73,13 +77,13 @@ __kernel void GaussianBlur(__read_only image2d_t inputImg,
 	  //float4 pixel = convert_float4(read_imageui(inputImg, sampler, coords)); // operate element-wise on all 3 color components (r,g,b)
 	  float4 pixel = read_imagef(inputImg, sampler, coords); // operate element-wise on all 3 color components (r,g,b)
 	  filtIdx++;
-	  sum += pixel * (float4)(gaussBlurFilter[filtIdx],gaussBlurFilter[filtIdx],gaussBlurFilter[filtIdx],1.0f); // leave a-channel unchanged
+	  sum += pixel * (float4)(gaussBlurFilter[z*filtSize+filtIdx],gaussBlurFilter[z*filtSize+filtIdx],gaussBlurFilter[z*filtSize+filtIdx],1.0f); // leave a-channel unchanged
 	  }
      }
 	//write resultant filtered pixel to output image
-	coords = (int2)(x,y);
+	int4 coords2 = (int4)(x,y,z,0);
 	//write_imageui(outputImg, coords, convert_uint4(sum));
-	write_imagef(outputImg, coords, sum);
+	write_imagef(outputImg, coords2, sum);
 }
 
 __kernel void DoG(__read_only image2d_t inputImg1,
@@ -135,3 +139,5 @@ __kernel void Extrema(__read_only image2d_t preImg,
    }	   
 	
 }
+
+
