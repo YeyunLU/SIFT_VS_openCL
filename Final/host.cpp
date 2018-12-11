@@ -9,6 +9,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <iostream>
+#include <sstream>
 #include <cstring>
 #include <string>
 #include <windows.h>
@@ -49,18 +50,18 @@ int main(int argc, char** argv)
 	cl_int sizex = 1;//downsample size
 	cl_int sizey = 1;
 	cl_int filterWidth = 5/sizex;
-	cl_int filterSize = filterWidth * filterWidth;
+	cl_int filterSize = filterWidth * filterWidth*5;
 	int * idx = (int*)_aligned_malloc(sizeof(int)*1, 4096);
 	float * gaussBlurFilter = (float*)_aligned_malloc(sizeof(float)*filterSize, 4096);
 	float * filtsum = (float*)_aligned_malloc(sizeof(float)*filterSize, 4096);
-	filtsum[0] = 0;
+	//filtsum[0] = 0;
 	cl_uint2 extremapoints[100];
-	size_t filterworksize[] = { filterWidth*filterWidth,0,0 };
-	size_t filterlocalworksize[] = { filterWidth*filterWidth,0,0 };
+	size_t filterworksize[] = { filterWidth*filterWidth,5,0 };
+	size_t filterlocalworksize[] = { filterWidth*filterWidth,1,0 };
 	LARGE_INTEGER frequency;
 	LARGE_INTEGER start;
 	LARGE_INTEGER end;
-
+	string fileIdx[] = { "0","1","2","3","4","5" };
 	cl_ulong start_time;
 	cl_ulong end_time;
 	int iteration = 1;
@@ -79,18 +80,18 @@ int main(int argc, char** argv)
 	unsigned char *indata = NULL;
 	unsigned char *outdata = NULL;
 
-	string inputfile = "C:/Final/Final/Final/images/512_512.png";
-	string outputfile = "C:/Final/Final/Final/images/output.jpg";
+	string inputfile = "C:/SIFT/Final/images/512_512.png";
+	string outputfile = "C:/SIFT/Final/images/";
 	
 
 	indata = stbi_load(inputfile.c_str(), &width, &height, &channels, 0);
 
-	size_t globalworksize[] = { width,height,0 };
-	size_t globalworksize2[] = { width / sizex,height / sizey,0 };
-	size_t localworksize[] = { 1,1,0 };
-	size_t origin[] = { 0, 0, 0 };
-	size_t region[] = { width,height,1 };
-	size_t region2[] = { width / sizex, height / sizey, 1 };
+	size_t globalworksize[] = { width,height,5 };
+	size_t globalworksize2[] = { width / sizex,height / sizey,5 };
+	size_t localworksize[] = { 1,1,1};
+	size_t origin[] = { 0, 0, 0};
+	size_t region[] = { width,height,1}; // 1 for 2D image
+	size_t region2[] = { width / sizex, height / sizey, 1};
 
 	cl_image_desc desc;
 	desc.image_type = CL_MEM_OBJECT_IMAGE2D;
@@ -114,6 +115,17 @@ int main(int argc, char** argv)
 	desc2.num_mip_levels = 0;
 	desc2.num_samples = 0;
 	desc2.buffer = NULL;
+	cl_image_desc desc3;
+	desc3.image_type = CL_MEM_OBJECT_IMAGE2D_ARRAY;
+	desc3.image_width = width ;
+	desc3.image_height = height;
+	desc3.image_depth = 0;
+	desc3.image_array_size = 5;
+	desc3.image_row_pitch = 0;
+	desc3.image_slice_pitch = 0;
+	desc3.num_mip_levels = 0;
+	desc3.num_samples = 0;
+	desc3.buffer = NULL;
 	cl_image_format format;
 	format.image_channel_order = CL_RGBA;
 	format.image_channel_data_type = CL_UNSIGNED_INT8;
@@ -237,7 +249,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	GaussianBlurImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc, NULL, &err);
+	GaussianBlurImage = clCreateImage(context, CL_MEM_WRITE_ONLY, &format, &desc3, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
 		printf("Error: Failed to create GaussianBlurImage!\n");
@@ -357,7 +369,7 @@ int main(int argc, char** argv)
 		}
 
 		//Building Gaussian Matrix
-		err = clEnqueueNDRangeKernel(command, kernel[1], 1, NULL, filterworksize, filterlocalworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[1], 2, NULL, filterworksize, filterlocalworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -372,7 +384,7 @@ int main(int argc, char** argv)
 		}
 
 		//Gaussian Blur
-		err = clEnqueueNDRangeKernel(command, kernel[2], dimention, NULL, globalworksize, localworksize, 0, NULL, NULL);
+		err = clEnqueueNDRangeKernel(command, kernel[2], 3, NULL, globalworksize, localworksize, 0, NULL, NULL);
 		if (err != CL_SUCCESS)
 		{
 			printf("Error: Failed to enqueue NDRange Kernel!\n");
@@ -429,14 +441,25 @@ int main(int argc, char** argv)
 	printf("\tAverage Execution Time: %f ms\n ", time_ave);
 	printf("\tStandard Deviation of Time: %f\n ", time_standard_deviation);
 
-	err = clEnqueueReadImage(command, GaussianBlurImage, CL_TRUE, origin, region, 0, 0, outdata, 0, NULL, NULL);
-	if (err != CL_SUCCESS)
-	{
-		printf("Error: Failed to read image from device!\n");
-		return EXIT_FAILURE;
-	}
 
-	stbi_write_jpg(outputfile.c_str(), width , height, channels, outdata, 100);
+	
+	for (int i = 0; i < 5; i++)
+	{
+		size_t origin2[] = { 0, 0 ,i };
+		err = clEnqueueReadImage(command, GaussianBlurImage, CL_TRUE, origin2, region, 0, 0, outdata, 0, NULL, NULL);
+		if (err != CL_SUCCESS)
+		{
+			printf("Error: Failed to read image from device!\n");
+			return EXIT_FAILURE;
+		}
+		string fileName="";
+		fileName += fileIdx[i];
+		fileName += ".jpg";
+		string output = outputfile;
+		output.append(fileName);
+		stbi_write_jpg(output.c_str(), width, height, channels, outdata, 100);
+	}
+	
 
 
 	//Release Memory
